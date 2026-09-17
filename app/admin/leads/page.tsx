@@ -1,3 +1,54 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft, BriefcaseBusiness, CheckCircle2, Clock3, Mail, MapPin, Plus, Search, Trash2 } from 'lucide-react'
+import { requireFounderAdmin, writeFounderAudit } from '@/lib/founder-admin'
+import { getAdminClient } from '@/lib/supabase/admin'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+
+const statuses = ['new', 'contacted', 'qualified', 'demo_booked', 'trial', 'won', 'lost'] as const
+const sources = ['website', 'referral', 'outbound', 'event', 'other'] as const
+const organizationTypes = ['Solo Tutor', 'Coaching Center', 'Institute'] as const
+const activityTypes = ['General Activity', 'Contacted', 'Reply Received', 'Demo Scheduled', 'Trial Started', 'Converted to Paid', 'Marked Lost'] as const
+
+type Lead = { id: string; full_name: string; email: string; phone: string | null; organization_name: string | null; organization_type: string; city: string | null; source: string; status: string; notes: string | null; next_step: string | null; next_step_at: string | null; created_at: string; updated_at: string }
+type Activity = { id: string; activity_type: string; description: string; created_at: string }
+
+async function createLead(formData: FormData) {
+  const founder = await requireFounderAdmin(); if (!founder) redirect('/login')
+  const fullName = String(formData.get('full_name') ?? '').trim(); const email = String(formData.get('email') ?? '').trim().toLowerCase()
+  if (fullName.length < 2 || fullName.length > 120 || email.length < 3 || email.length > 320 || !email.includes('@')) return
+  const admin = getAdminClient(); const { data, error } = await admin.from('sales_leads').insert({ full_name: fullName, email, phone: clean(formData, 'phone'), organization_name: clean(formData, 'organization_name'), organization_type: String(formData.get('organization_type') ?? 'Coaching Center'), city: clean(formData, 'city'), linked_organization_id: clean(formData, 'linked_organization_id'), source: String(formData.get('source') ?? 'website'), status: String(formData.get('status') ?? 'new'), notes: clean(formData, 'notes'), next_step: clean(formData, 'next_step'), next_step_at: clean(formData, 'next_step_at'), created_by: founder.id, updated_by: founder.id }).select('id').single()
+  if (error || !data) return
+  await admin.from('sales_lead_activities').insert({ lead_id: data.id, activity_type: 'Lead Created', description: `Lead created for ${fullName}.`, created_by: founder.id })
+  await writeFounderAudit({ adminUserId: founder.id, adminEmail: founder.email, action: 'create_sales_lead', targetType: 'sales_lead', targetId: data.id })
+  revalidatePath('/admin/leads')
+}
+
+async function updateLead(formData: FormData) {
+  const founder = await requireFounderAdmin(); if (!founder) redirect('/login'); const id = String(formData.get('id') ?? ''); if (!id) return
+  const admin = getAdminClient(); const { data: before } = await admin.from('sales_leads').select('status').eq('id', id).maybeSingle()
+  const nextStatus = String(formData.get('status') ?? 'new'); const { error } = await admin.from('sales_leads').update({ status: nextStatus, next_step: clean(formData, 'next_step'), next_step_at: clean(formData, 'next_step_at'), notes: clean(formData, 'notes'), updated_by: founder.id }).eq('id', id)
+  if (error) return
+  if (before?.status !== nextStatus) await admin.from('sales_lead_activities').insert({ lead_id: id, activity_type: 'Status Changed', description: `Status changed from ${before?.status ?? 'unknown'} to ${nextStatus}.`, created_by: founder.id })
+  await writeFounderAudit({ adminUserId: founder.id, adminEmail: founder.email, action: 'update_sales_lead', targetType: 'sales_lead', targetId: id, metadata: { status: nextStatus } }); revalidatePath('/admin/leads')
+}
+
+async function addActivity(formData: FormData) {
+  const founder = await requireFounderAdmin(); if (!founder) redirect('/login'); const leadId = String(formData.get('lead_id') ?? ''); const description = String(formData.get('description') ?? '').trim(); if (!leadId || !description || description.length > 5000) return
+  const admin = getAdminClient(); await admin.from('sales_lead_activities').insert({ lead_id: leadId, activity_type: String(formData.get('activity_type') ?? 'General Activity'), description, created_by: founder.id }); await writeFounderAudit({ adminUserId: founder.id, adminEmail: founder.email, action: 'add_sales_lead_activity', targetType: 'sales_lead', targetId: leadId }); revalidatePath('/admin/leads')
+}
+
+async function deleteLead(formData: FormData) { const founder = await requireFounderAdmin(); if (!founder) redirect('/login'); const id = String(formData.get('id') ?? ''); if (!id) return; const admin = getAdminClient(); const { error } = await admin.from('sales_leads').delete().eq('id', id); if (!error) { await writeFounderAudit({ adminUserId: founder.id, adminEmail: founder.email, action: 'delete_sales_lead', targetType: 'sales_lead', targetId: id }); revalidatePath('/admin/leads') } }
+function clean(formData: FormData, key: string) { const value = String(formData.get(key) ?? '').trim(); return value || null }
+function label(value: string) { return value.replaceAll('_', ' ') }
+
 export default async function FounderLeadsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; lead?: string }> }) {
   const founder = await requireFounderAdmin(); if (!founder) redirect('/login'); const params = await searchParams; const query = (params.q ?? '').trim().toLowerCase(); const statusFilter = params.status ?? 'all'
 
@@ -7,7 +58,7 @@ export default async function FounderLeadsPage({ searchParams }: { searchParams:
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     console.error('[admin/leads] getAdminClient failed:', message)
-    return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Leads page can't reach Supabase</h1><p className="mt-2 text-sm text-muted-foreground">{message}</p></main>
+    return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Leads page can&apos;t reach Supabase</h1><p className="mt-2 text-sm text-muted-foreground">{message}</p></main>
   }
 
   const [leadsRes, orgsRes] = await Promise.all([
@@ -17,11 +68,11 @@ export default async function FounderLeadsPage({ searchParams }: { searchParams:
 
   if (leadsRes.error) {
     console.error('[admin/leads] sales_leads query failed:', leadsRes.error)
-    return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Couldn't load leads</h1><p className="mt-2 text-sm text-muted-foreground">{leadsRes.error.message}</p><p className="mt-1 text-xs text-muted-foreground">code: {leadsRes.error.code}</p></main>
+    return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Couldn&apos;t load leads</h1><p className="mt-2 text-sm text-muted-foreground">{leadsRes.error.message}</p><p className="mt-1 text-xs text-muted-foreground">code: {leadsRes.error.code}</p></main>
   }
   if (orgsRes.error) {
     console.error('[admin/leads] organizations query failed:', orgsRes.error)
-    return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Couldn't load organizations</h1><p className="mt-2 text-sm text-muted-foreground">{orgsRes.error.message}</p><p className="mt-1 text-xs text-muted-foreground">code: {orgsRes.error.code}</p></main>
+    return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Couldn&apos;t load organizations</h1><p className="mt-2 text-sm text-muted-foreground">{orgsRes.error.message}</p><p className="mt-1 text-xs text-muted-foreground">code: {orgsRes.error.code}</p></main>
   }
 
   const data = leadsRes.data
@@ -32,7 +83,7 @@ export default async function FounderLeadsPage({ searchParams }: { searchParams:
     const actRes = await admin.from('sales_lead_activities').select('id,activity_type,description,created_at').eq('lead_id', selected.id).order('created_at', { ascending: false })
     if (actRes.error) {
       console.error('[admin/leads] sales_lead_activities query failed:', actRes.error)
-      return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Couldn't load activity</h1><p className="mt-2 text-sm text-muted-foreground">{actRes.error.message}</p><p className="mt-1 text-xs text-muted-foreground">code: {actRes.error.code}</p></main>
+      return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Couldn&apos;t load activity</h1><p className="mt-2 text-sm text-muted-foreground">{actRes.error.message}</p><p className="mt-1 text-xs text-muted-foreground">code: {actRes.error.code}</p></main>
     }
     activities = (actRes.data ?? []) as Activity[]
   }
@@ -44,3 +95,5 @@ export default async function FounderLeadsPage({ searchParams }: { searchParams:
     {selected && <Card><CardHeader><CardTitle className="flex flex-wrap items-center justify-between gap-3"><span>{selected.full_name} activity</span><Link href="/admin/leads" className="text-sm font-normal text-muted-foreground hover:text-foreground">Close</Link></CardTitle></CardHeader><CardContent className="grid gap-6 lg:grid-cols-[1fr_1.4fr]"><form action={addActivity} className="flex flex-col gap-3"><input type="hidden" name="lead_id" value={selected.id} /><div><Label htmlFor="activity_type">Activity type</Label><select id="activity_type" name="activity_type" className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{activityTypes.map((type) => <option key={type}>{type}</option>)}</select></div><div><Label htmlFor="description">What happened?</Label><Textarea id="description" name="description" required maxLength={5000} className="mt-2 min-h-28" placeholder="Add a concise note about the conversation or next step." /></div><Button type="submit">Add activity</Button></form><div className="flex flex-col gap-3">{activities.length === 0 ? <p className="text-sm text-muted-foreground">No activity recorded yet.</p> : activities.map((activity) => <div key={activity.id} className="flex gap-3 rounded-lg border border-border p-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-primary" /><div><p className="text-sm font-medium">{activity.activity_type}</p><p className="text-sm text-muted-foreground">{activity.description}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(activity.created_at).toLocaleString()}</p></div></div>)}</div></CardContent></Card>}
   </main>
 }
+function Field({ name, label, type = 'text', required = false }: { name: string; label: string; type?: string; required?: boolean }) { return <div><Label htmlFor={name}>{label}</Label><Input id={name} name={name} type={type} required={required} maxLength={name === 'email' ? 320 : 160} className="mt-2" /></div> }
+function SelectField({ name, label, options }: { name: string; label: string; options: readonly string[] }) { return <div><Label htmlFor={name}>{label}</Label><select id={name} name={name} defaultValue={options[0]} className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{options.map((option) => <option key={option} value={option}>{label === 'Status' ? option.replaceAll('_', ' ') : option}</option>)}</select></div> }
