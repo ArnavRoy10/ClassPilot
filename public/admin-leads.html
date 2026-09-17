@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Leads Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --bg: #0b0c0f;
+    --panel: #15171c;
+    --border: #262a33;
+    --text: #e7e9ee;
+    --muted: #8b90a0;
+    --accent: #5b8cff;
+    --danger: #ff5c5c;
+    --ok: #35c470;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+  /* Login screen */
+  #login { max-width: 360px; margin: 80px auto; padding: 24px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  #login h2 { margin-top: 0; font-size: 18px; }
+  #login p.err { color: var(--danger); font-size: 13px; min-height: 16px; }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+  input, select, textarea {
+    width: 100%; padding: 9px 10px; background: #1c1f26; border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  button {
+    cursor: pointer; border: none; border-radius: 8px; padding: 9px 16px;
+    font-size: 14px; font-weight: 600; background: var(--accent); color: white;
+  }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+  .stat .n { font-size: 20px; font-weight: 700; }
+  .stat .l { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: flex-end; }
+  .toolbar > div { flex: 1; min-width: 160px; }
+
+  .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+
+  .lead {
+    display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr 1fr auto;
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px;
+    align-items: start;
+  }
+  @media (max-width: 800px) { .lead { grid-template-columns: 1fr; } }
+  .lead .name { font-weight: 600; }
+  .lead .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #23262f; text-transform: capitalize; }
+  .lead-actions { display: flex; flex-direction: column; gap: 6px; }
+  .row-inline { display: flex; gap: 8px; }
+  #empty, #loading { text-align: center; color: var(--muted); padding: 40px 0; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h2>Founder sign in</h2>
+  <label>Email</label>
+  <input id="loginEmail" type="email" autocomplete="username" />
+  <label>Password</label>
+  <input id="loginPassword" type="password" autocomplete="current-password" />
+  <p class="err" id="loginErr"></p>
+  <button id="loginBtn" style="width:100%;margin-top:8px;">Sign in</button>
+</div>
+
+<div class="wrap" id="app" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>Leads</h1>
+      <div class="sub" id="whoami"></div>
+    </div>
+    <button class="secondary" id="signOutBtn">Sign out</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <strong>Add lead</strong>
+    <form id="createForm" class="grid-form" style="margin-top:8px;">
+      <div><label>Full name *</label><input name="full_name" required maxlength="120" /></div>
+      <div><label>Email *</label><input name="email" type="email" required maxlength="320" /></div>
+      <div><label>Phone</label><input name="phone" maxlength="40" /></div>
+      <div><label>Organization</label><input name="organization_name" maxlength="160" /></div>
+      <div><label>City</label><input name="city" maxlength="120" /></div>
+      <div><label>Type</label>
+        <select name="organization_type">
+          <option>Solo Tutor</option><option>Coaching Center</option><option>Institute</option>
+        </select>
+      </div>
+      <div><label>Source</label>
+        <select name="source">
+          <option>website</option><option>referral</option><option>outbound</option><option>event</option><option>other</option>
+        </select>
+      </div>
+      <div><label>Status</label>
+        <select name="status">
+          <option>new</option><option>contacted</option><option>qualified</option><option>demo_booked</option><option>trial</option><option>won</option><option>lost</option>
+        </select>
+      </div>
+      <div><label>Next step</label><input name="next_step" maxlength="500" /></div>
+      <div><label>Next step date</label><input name="next_step_at" type="date" /></div>
+      <div style="grid-column:1/-1;"><label>Notes</label><textarea name="notes" maxlength="5000"></textarea></div>
+      <div style="grid-column:1/-1;"><button type="submit">Create lead</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div><label>Search</label><input id="searchInput" placeholder="Name, email, org, city" /></div>
+      <div><label>Status</label>
+        <select id="statusFilter">
+          <option value="all">All statuses</option>
+          <option>new</option><option>contacted</option><option>qualified</option><option>demo_booked</option><option>trial</option><option>won</option><option>lost</option>
+        </select>
+      </div>
+    </div>
+    <div id="loading">Loading leads…</div>
+    <div id="empty" style="display:none;">No leads match this view.</div>
+    <div id="leadsList"></div>
+  </div>
+</div>
+
+<script>
+// ---- CONFIGURE THESE TWO VALUES ----
+const SUPABASE_URL = "https://hobshjovtisfokpkuvnx.supabase.co";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY_HERE";
+// -------------------------------------
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const statuses = ['new','contacted','qualified','demo_booked','trial','won','lost'];
+let allLeads = [];
+
+const $ = (id) => document.getElementById(id);
+
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString() : ''; }
+
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    $('login').style.display = 'none';
+    $('app').style.display = 'block';
+    $('whoami').textContent = session.user.email;
+    loadLeads();
+  } else {
+    $('login').style.display = 'block';
+    $('app').style.display = 'none';
+  }
+}
+
+$('loginBtn').addEventListener('click', async () => {
+  $('loginErr').textContent = '';
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { $('loginErr').textContent = error.message; return; }
+  checkSession();
+});
+
+$('signOutBtn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  checkSession();
+});
+
+async function loadLeads() {
+  $('loading').style.display = 'block';
+  const { data, error } = await sb
+    .from('sales_leads')
+    .select('id,full_name,email,phone,organization_name,organization_type,city,source,status,notes,next_step,next_step_at,created_at,updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(500);
+  $('loading').style.display = 'none';
+  if (error) {
+    $('leadsList').innerHTML = `<p style="color:var(--danger)">Failed to load: ${error.message}</p>`;
+    return;
+  }
+  allLeads = data || [];
+  renderStats();
+  renderLeads();
+}
+
+function renderStats() {
+  const totals = {};
+  allLeads.forEach(l => { totals[l.status] = (totals[l.status] || 0) + 1; });
+  $('stats').innerHTML = statuses.map(s => `
+    <div class="stat"><div class="n">${totals[s] || 0}</div><div class="l">${s.replaceAll('_',' ')}</div></div>
+  `).join('');
+}
+
+function renderLeads() {
+  const q = $('searchInput').value.trim().toLowerCase();
+  const statusFilter = $('statusFilter').value;
+  const filtered = allLeads.filter(l => {
+    const matchesQ = !q || [l.full_name, l.email, l.organization_name || '', l.city || ''].join(' ').toLowerCase().includes(q);
+    const matchesStatus = statusFilter === 'all' || l.status === statusFilter;
+    return matchesQ && matchesStatus;
+  });
+
+  $('empty').style.display = filtered.length === 0 ? 'block' : 'none';
+  $('leadsList').innerHTML = filtered.map(l => `
+    <div class="lead" data-id="${l.id}">
+      <div>
+        <div class="name">${escapeHtml(l.full_name)}</div>
+        <div class="meta">${escapeHtml(l.email)}</div>
+        ${l.city ? `<div class="meta">${escapeHtml(l.city)}</div>` : ''}
+      </div>
+      <div>
+        <div>${escapeHtml(l.organization_name || 'Independent tutor')}</div>
+        <div class="meta">${escapeHtml(l.organization_type)} · ${escapeHtml(l.source)}</div>
+      </div>
+      <div>
+        <span class="badge">${l.status.replaceAll('_',' ')}</span>
+        <div class="meta">${fmtDate(l.updated_at)}</div>
+      </div>
+      <div class="lead-actions">
+        <select class="f-status">
+          ${statuses.map(s => `<option value="${s}" ${s===l.status?'selected':''}>${s.replaceAll('_',' ')}</option>`).join('')}
+        </select>
+        <input class="f-next-step" placeholder="Next step" value="${escapeAttr(l.next_step || '')}" maxlength="500" />
+        <input class="f-next-step-at" type="date" value="${l.next_step_at ? l.next_step_at.slice(0,10) : ''}" />
+        <textarea class="f-notes" placeholder="Notes" maxlength="5000">${escapeHtml(l.notes || '')}</textarea>
+        <div class="row-inline">
+          <button class="save-btn">Save</button>
+          <button class="danger delete-btn">Delete</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  filtered.forEach(l => {
+    const el = document.querySelector(`.lead[data-id="${l.id}"]`);
+    el.querySelector('.save-btn').addEventListener('click', () => saveLead(l.id, el));
+    el.querySelector('.delete-btn').addEventListener('click', () => deleteLead(l.id, l.full_name));
+  });
+}
+
+async function saveLead(id, el) {
+  const status = el.querySelector('.f-status').value;
+  const next_step = el.querySelector('.f-next-step').value.trim() || null;
+  const next_step_at = el.querySelector('.f-next-step-at').value || null;
+  const notes = el.querySelector('.f-notes').value.trim() || null;
+  const btn = el.querySelector('.save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await sb.from('sales_leads').update({ status, next_step, next_step_at, notes }).eq('id', id);
+  btn.disabled = false; btn.textContent = 'Save';
+  if (error) { alert('Save failed: ' + error.message); return; }
+  await loadLeads();
+}
+
+async function deleteLead(id, name) {
+  if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+  const { error } = await sb.from('sales_leads').delete().eq('id', id);
+  if (error) { alert('Delete failed: ' + error.message); return; }
+  await loadLeads();
+}
+
+$('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = {
+    full_name: fd.get('full_name').toString().trim(),
+    email: fd.get('email').toString().trim().toLowerCase(),
+    phone: fd.get('phone').toString().trim() || null,
+    organization_name: fd.get('organization_name').toString().trim() || null,
+    organization_type: fd.get('organization_type'),
+    city: fd.get('city').toString().trim() || null,
+    source: fd.get('source'),
+    status: fd.get('status'),
+    notes: fd.get('notes').toString().trim() || null,
+    next_step: fd.get('next_step').toString().trim() || null,
+    next_step_at: fd.get('next_step_at') || null,
+  };
+  if (payload.full_name.length < 2 || !payload.email.includes('@')) {
+    alert('Enter a valid name and email.');
+    return;
+  }
+  const { error } = await sb.from('sales_leads').insert(payload);
+  if (error) { alert('Create failed: ' + error.message); return; }
+  e.target.reset();
+  await loadLeads();
+});
+
+$('searchInput').addEventListener('input', renderLeads);
+$('statusFilter').addEventListener('change', renderLeads);
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(str) { return escapeHtml(str); }
+
+checkSession();
+sb.auth.onAuthStateChange(() => checkSession());
+</script>
+</body>
+</html>
