@@ -9,7 +9,15 @@ export default async function FounderAdminPage() {
   const founder = await requireFounderAdmin()
   if (!founder) redirect('/login')
 
-  const admin = getAdminClient()
+  let admin: ReturnType<typeof getAdminClient>
+  try {
+    admin = getAdminClient()
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    console.error('[founder] getAdminClient failed:', message)
+    return <main className="mx-auto w-full max-w-2xl py-16 text-center"><h1 className="text-xl font-semibold">Founder console can&apos;t reach Supabase</h1><p className="mt-2 text-sm text-muted-foreground">{message}</p></main>
+  }
+
   const [{ data: organizations }, { data: subscriptions }, { data: profiles }, { data: auditLogs }, { data: productEvents }] = await Promise.all([
     admin.from('organizations').select('id,name,type,plan,created_at').order('created_at', { ascending: false }).limit(200),
     admin.from('subscriptions').select('organization_id,plan,status,current_period_end,trial_end').order('created_at', { ascending: false }).limit(200),
@@ -51,6 +59,7 @@ export default async function FounderAdminPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
           <div><p className="font-medium">Sales pipeline</p><p className="text-sm text-muted-foreground">Track prospects, demos, trials, and next steps.</p></div>
           <Link href="/admin/leads" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">Open leads <ArrowRight className="size-4" /></Link>
+          <Link href="/founder/audit-log" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">Full audit log <ArrowRight className="size-4" /></Link>
         </div>
       </section>
 
