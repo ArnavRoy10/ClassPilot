@@ -34,6 +34,7 @@ function LoginForm() {
     }
 
     toast.success('Welcome back to ClassPilot')
+    void fetch('/api/auth/log-session', { method: 'POST' })
     router.push(searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/dashboard')
   }
 
