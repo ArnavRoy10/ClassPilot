@@ -10,7 +10,7 @@ export async function getBillingContext() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('organization_id, role, organizations(id, name, plan, max_students, max_teachers)')
+    .select('id, full_name, organization_id, role, organizations(id, name, plan, max_students, max_teachers)')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -22,7 +22,14 @@ export async function getBillingContext() {
     supabase.rpc('billing_usage', { target_org_id: organization.id }).maybeSingle(),
   ])
 
-  return { supabase, user, profile, organization, subscription, usage }
+  return {
+    supabase,
+    user,
+    profile,
+    organization,
+    subscription,
+    usage: usage as { student_count: number; teacher_count: number } | null,
+  }
 }
 
 export async function createBillingCheckout(plan: BillingPlan) {
