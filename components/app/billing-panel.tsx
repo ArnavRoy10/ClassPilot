@@ -19,6 +19,26 @@ type Props = {
   usage: { student_count: number; teacher_count: number } | null
 }
 
+declare global {
+  interface Window {
+    Razorpay: new (options: Record<string, unknown>) => { open: () => void }
+  }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && window.Razorpay) {
+      resolve(true)
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.onload = () => resolve(true)
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+  })
+}
+
 export function BillingPanel({ organization, subscription, usage }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
   const activePlan = subscription?.plan ?? organization.plan
@@ -27,10 +47,28 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
   async function startCheckout(plan: string) {
     setBusy(plan)
     try {
-      const response = await fetch('/api/billing/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan }) })
+      const scriptLoaded = await loadRazorpayScript()
+      if (!scriptLoaded) throw new Error('Unable to load Razorpay checkout. Check your connection and try again.')
+
+      const response = await fetch('/api/billing/razorpay', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan }) })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error)
-      if (result.url) window.location.assign(result.url)
+      if (!response.ok) throw new Error(result.error ?? 'Unable to start checkout.')
+
+      const razorpayCheckout = new window.Razorpay({
+        key: result.keyId,
+        subscription_id: result.subscriptionId,
+        name: 'ClassPilot',
+        description: `${result.plan} plan`,
+        theme: { color: '#5b8cff' },
+        handler: () => {
+          toast.success('Payment received — activating your plan…')
+          setTimeout(() => window.location.reload(), 1500)
+        },
+        modal: {
+          ondismiss: () => setBusy(null),
+        },
+      })
+      razorpayCheckout.open()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to start checkout')
       setBusy(null)
