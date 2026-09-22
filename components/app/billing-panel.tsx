@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getDaysRemaining } from '@/lib/billing'
+import { getDaysRemaining } from '@/lib/billing-utils'
 
 const plans = [
   { id: 'solo', name: 'Solo Tutor', price: '₹299', limits: '50 students · 5 teachers' },
@@ -17,13 +17,13 @@ const plans = [
 
 type Props = {
   organization: { id: string; name: string; plan: string; max_students: number; max_teachers: number }
-  subscription: { 
-    plan: string; 
-    status: string; 
-    stripe_subscription_id: string | null; 
-    cancel_at_period_end: boolean; 
-    current_period_end: string | null;
-    trial_end: string | null;
+  subscription: {
+    plan: string
+    status: string
+    stripe_subscription_id: string | null
+    cancel_at_period_end: boolean
+    current_period_end: string | null
+    trial_end: string | null
   } | null
   usage: { student_count: number; teacher_count: number } | null
 }
@@ -52,8 +52,6 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
   const activePlan = subscription?.plan ?? organization.plan
   const status = subscription?.status ?? 'trialing'
-  
-  // Calculate days remaining
   const daysInfo = getDaysRemaining(subscription)
 
   async function startCheckout(plan: string) {
@@ -62,10 +60,10 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
       const scriptLoaded = await loadRazorpayScript()
       if (!scriptLoaded) throw new Error('Unable to load Razorpay checkout. Check your connection and try again.')
 
-      const response = await fetch('/api/billing/razorpay', { 
-        method: 'POST', 
-        headers: { 'content-type': 'application/json' }, 
-        body: JSON.stringify({ plan }) 
+      const response = await fetch('/api/billing/razorpay', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ plan }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error ?? 'Unable to start checkout.')
@@ -112,7 +110,7 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
           <CardTitle className="flex items-center gap-2">
             Current Plan
             {daysInfo.days > 0 && (
-              <Badge variant={daysInfo.isTrial ? "secondary" : "outline"} className="font-normal">
+              <Badge variant={daysInfo.isTrial ? 'secondary' : 'outline'} className="font-normal">
                 <Clock className="w-3 h-3 mr-1" />
                 {daysInfo.label}
               </Badge>
@@ -136,19 +134,17 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
         </CardContent>
       </Card>
 
-      {/* Show trial banner if in trial */}
       {daysInfo.isTrial && daysInfo.days > 0 && (
         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950 dark:to-indigo-950 dark:border-blue-800">
           <CardContent className="py-4">
             <p className="text-sm text-blue-800 dark:text-blue-200">
-              <strong>Free Trial:</strong> You have {daysInfo.days} day{daysInfo.days !== 1 ? 's' : ''} left to try all features. 
+              <strong>Free Trial:</strong> You have {daysInfo.days} day{daysInfo.days !== 1 ? 's' : ''} left to try all features.
               Upgrade now to continue without interruption.
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Show renewal info for paid subscriptions */}
       {!daysInfo.isTrial && subscription?.status === 'active' && daysInfo.days > 0 && (
         <Card className="bg-muted/50">
           <CardContent className="py-4">
@@ -174,10 +170,10 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
                   <li className="flex gap-2"><Check className="size-4 text-primary" />Unlimited attendance</li>
                   <li className="flex gap-2"><Check className="size-4 text-primary" />Reports and notifications</li>
                 </ul>
-                <Button 
-                  className="w-full" 
-                  variant={current ? 'secondary' : 'default'} 
-                  disabled={current || busy !== null} 
+                <Button
+                  className="w-full"
+                  variant={current ? 'secondary' : 'default'}
+                  disabled={current || busy !== null}
                   onClick={() => startCheckout(plan.id)}
                 >
                   {busy === plan.id && <Loader2 className="animate-spin mr-2" />}
