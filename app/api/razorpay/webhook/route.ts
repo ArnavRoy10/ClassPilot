@@ -33,7 +33,20 @@ export async function POST(request: Request) {
   const entity = event.payload?.subscription?.entity
   const organizationId = entity?.notes?.organization_id
   if (organizationId && entity?.id) {
-    await adminClient.from('subscriptions').upsert({ organization_id: organizationId, stripe_subscription_id: `razorpay:${entity.id}`, plan: entity.notes?.plan ?? 'free', status: entity.status === 'active' ? 'active' : entity.status === 'cancelled' ? 'canceled' : 'incomplete', current_period_start: entity.current_start ? new Date(entity.current_start * 1000).toISOString() : null, current_period_end: entity.current_end ? new Date(entity.current_end * 1000).toISOString() : null, updated_at: new Date().toISOString() }, { onConflict: 'organization_id' })
+    const plan = entity.notes?.plan ?? 'free'
+    const status = entity.status === 'active' ? 'active' : entity.status === 'cancelled' ? 'canceled' : 'incomplete'
+    await adminClient.from('subscriptions').upsert({ organization_id: organizationId, stripe_subscription_id: `razorpay:${entity.id}`, plan, status, current_period_start: entity.current_start ? new Date(entity.current_start * 1000).toISOString() : null, current_period_end: entity.current_end ? new Date(entity.current_end * 1000).toISOString() : null, updated_at: new Date().toISOString() }, { onConflict: 'organization_id' })
+
+    // Only raise/lower seat limits once the subscription is actually active — a cancelled
+    // or incomplete subscription should not grant the plan's limits.
+    if (status === 'active') {
+      const limits = plan === 'solo' ? { max_students: 50, max_teachers: 5 }
+        : plan === 'starter' ? { max_students: 150, max_teachers: 15 }
+        : plan === 'growth' ? { max_students: 500, max_teachers: 40 }
+        : plan === 'pro' ? { max_students: 100000, max_teachers: 100 }
+        : { max_students: 25, max_teachers: 3 }
+      await adminClient.from('organizations').update({ plan, ...limits }).eq('id', organizationId)
+    }
   }
 
   // Payment Links: a parent finished paying via a fee payment link
