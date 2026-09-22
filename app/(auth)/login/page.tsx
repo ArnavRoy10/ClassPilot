@@ -24,7 +24,7 @@ function LoginForm() {
     const email = String(form.get('email') ?? '').trim()
     const password = String(form.get('password') ?? '')
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setLoading(false)
@@ -34,7 +34,10 @@ function LoginForm() {
     }
 
     toast.success('Welcome back to ClassPilot')
-    void fetch('/api/auth/log-session', { method: 'POST' })
+    const accessToken = data.session?.access_token
+    if (accessToken) {
+      void fetch('/api/auth/log-session', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } })
+    }
     router.push(searchParams.get('next')?.startsWith('/') ? searchParams.get('next')! : '/dashboard')
   }
 
