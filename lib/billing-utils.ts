@@ -16,7 +16,10 @@ export function getDaysRemaining(subscription: {
 
     return {
       days: Math.max(0, diffDays),
-      label: diffDays > 0 ? `${diffDays} day${diffDays !== 1 ? 's' : ''} left in free trial` : 'Trial expired',
+      label:
+        diffDays > 0
+          ? `${diffDays} day${diffDays !== 1 ? 's' : ''} left in free trial`
+          : 'Trial expired',
       isTrial: true,
     }
   }
