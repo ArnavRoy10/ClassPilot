@@ -165,11 +165,16 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
                 <CardDescription>{plan.limits}</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                <p className="text-2xl font-semibold">{plan.price}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+                <p className="text-2xl font-semibold">
+                  {plan.price}
+                  <span className="text-sm font-normal text-muted-foreground">/month</span>
+                </p>
+
                 <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
                   <li className="flex gap-2"><Check className="size-4 text-primary" />Unlimited attendance</li>
                   <li className="flex gap-2"><Check className="size-4 text-primary" />Reports and notifications</li>
                 </ul>
+
                 <Button
                   className="w-full"
                   variant={current ? 'secondary' : 'default'}
