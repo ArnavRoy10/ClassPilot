@@ -2,73 +2,71 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-} from '@/components/ui/sidebar'
-import { Logo } from '@/components/brand/logo'
-import { appNav } from '@/lib/nav'
-import type { UserContext } from '@/lib/supabase/user-context'
+import { 
+  LayoutDashboard, 
+  Users, 
+  GraduationCap, 
+  Calendar, 
+  Settings,
+  CreditCard,
+  LogOut
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
-export function AppSidebar({ userContext }: { userContext: UserContext | null }) {
+const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/students', label: 'Students', icon: GraduationCap },
+  { href: '/teachers', label: 'Teachers', icon: Users },
+  { href: '/classes', label: 'Classes', icon: Calendar },
+  { href: '/settings', label: 'Settings', icon: Settings },
+]
+
+export function AppSidebar() {
   const pathname = usePathname()
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-1 py-1.5">
-          <Logo />
-        </div>
-        <div className="rounded-md bg-sidebar-accent px-2 py-1.5 text-xs">
-          <p className="font-medium text-sidebar-accent-foreground">{userContext?.organization.name ?? 'Your organization'}</p>
-          <p className="text-muted-foreground">{userContext ? `${userContext.organization.plan} plan · ${userContext.organization.type === 'solo_tutor' ? 'Solo tutor' : 'Coaching center'}` : 'Loading workspace'}</p>
-        </div>
-      </SidebarHeader>
+    <aside className="w-64 border-r bg-background min-h-screen flex flex-col">
+      <div className="p-6">
+        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl">
+          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
+            CP
+          </div>
+          ClassPilot
+        </Link>
+      </div>
 
-      <SidebarContent>
-        {appNav.map((group) => {
-          const items = group.items.filter((item) => !(item.href === '/teachers' && userContext?.organization.type === 'solo_tutor'))
-          if (items.length === 0) return null
+      <nav className="flex-1 px-4 space-y-1">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = pathname.startsWith(item.href)
+          
           return (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            <SidebarMenu>
-              {items.map((item) => {
-                const active =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`)
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      isActive={active}
-                      tooltip={item.title}
-                      render={<Link href={item.href} />}
-                    >
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroup>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                isActive 
+                  ? 'bg-primary/10 text-primary' 
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Link>
           )
         })}
-      </SidebarContent>
+      </nav>
 
-      <SidebarFooter className="border-t border-sidebar-border">
-        <p className="px-2 py-1 text-xs text-muted-foreground">
-          ClassPilot · Preview build
-        </p>
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+      <div className="p-4 border-t">
+        <form action="/auth/signout" method="post">
+          <Button variant="ghost" className="w-full justify-start gap-3" type="submit">
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
+        </form>
+      </div>
+    </aside>
   )
 }
