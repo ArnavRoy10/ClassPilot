@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireFounderAdmin } from '@/lib/founder-admin'
 import { getAdminClient } from '@/lib/supabase/admin'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function FounderAuditLogPage() {
   const founder = await requireFounderAdmin()
   if (!founder) redirect('/login')
