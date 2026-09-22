@@ -34,11 +34,14 @@ export function AppSidebar({ userContext }: { userContext: UserContext | null })
       </SidebarHeader>
 
       <SidebarContent>
-        {appNav.map((group) => (
+        {appNav.map((group) => {
+          const items = group.items.filter((item) => !(item.href === '/teachers' && userContext?.organization.type === 'solo_tutor'))
+          if (items.length === 0) return null
+          return (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarMenu>
-              {group.items.map((item) => {
+              {items.map((item) => {
                 const active =
                   pathname === item.href || pathname.startsWith(`${item.href}/`)
                 return (
@@ -56,7 +59,8 @@ export function AppSidebar({ userContext }: { userContext: UserContext | null })
               })}
             </SidebarMenu>
           </SidebarGroup>
-        ))}
+          )
+        })}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
