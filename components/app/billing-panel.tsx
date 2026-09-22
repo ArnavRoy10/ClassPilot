@@ -62,7 +62,11 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
       const scriptLoaded = await loadRazorpayScript()
       if (!scriptLoaded) throw new Error('Unable to load Razorpay checkout. Check your connection and try again.')
 
-      const response = await fetch('/api/billing/razorpay', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan }) })
+      const response = await fetch('/api/billing/razorpay', { 
+        method: 'POST', 
+        headers: { 'content-type': 'application/json' }, 
+        body: JSON.stringify({ plan }) 
+      })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error ?? 'Unable to start checkout.')
 
@@ -134,9 +138,9 @@ export function BillingPanel({ organization, subscription, usage }: Props) {
 
       {/* Show trial banner if in trial */}
       {daysInfo.isTrial && daysInfo.days > 0 && (
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950 dark:to-indigo-950 dark:border-blue-800">
           <CardContent className="py-4">
-            <p className="text-sm text-blue-800">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
               <strong>Free Trial:</strong> You have {daysInfo.days} day{daysInfo.days !== 1 ? 's' : ''} left to try all features. 
               Upgrade now to continue without interruption.
             </p>
