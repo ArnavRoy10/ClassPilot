@@ -8,64 +8,97 @@ import {
   GraduationCap, 
   Calendar, 
   Settings,
-  CreditCard,
-  LogOut
+  LogOut,
+  Bell,
+  BookOpen,
+  IndianRupee
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/students', label: 'Students', icon: GraduationCap },
   { href: '/teachers', label: 'Teachers', icon: Users },
   { href: '/classes', label: 'Classes', icon: Calendar },
+  { href: '/attendance', label: 'Attendance', icon: BookOpen },
+  { href: '/fees', label: 'Fees', icon: IndianRupee },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const supabase = createClient()
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
 
   return (
-    <aside className="w-64 border-r bg-background min-h-screen flex flex-col">
-      <div className="p-6">
+    <aside className="flex h-screen w-64 flex-col border-r bg-background">
+      {/* Logo Section */}
+      <div className="flex h-16 items-center border-b px-6">
         <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl">
-          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             CP
           </div>
-          ClassPilot
+          <span>ClassPilot</span>
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname.startsWith(item.href)
-          
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive 
-                  ? 'bg-primary/10 text-primary' 
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          )
-        })}
+      {/* Navigation */}
+      <nav className="flex-1 overflow-auto py-4 px-3">
+        <div className="space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+            
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  isActive 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            )
+          })}
+        </div>
       </nav>
 
-      <div className="p-4 border-t">
-        <form action="/auth/signout" method="post">
-          <Button variant="ghost" className="w-full justify-start gap-3" type="submit">
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
-        </form>
+      {/* Bottom Section */}
+      <div className="border-t p-4 space-y-4">
+        {/* Notifications Link */}
+        <Link
+          href="/notifications"
+          className={cn(
+            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+            pathname === '/notifications'
+              ? 'bg-primary text-primary-foreground' 
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          )}
+        >
+          <Bell className="h-4 w-4" />
+          Notifications
+        </Link>
+
+        {/* Sign Out Button */}
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </Button>
       </div>
     </aside>
   )
