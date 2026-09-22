@@ -58,9 +58,20 @@ export async function createBillingCheckout(plan: BillingPlan) {
 export async function cancelBillingSubscription() {
   const context = await getBillingContext()
   if (!context || context.profile.role !== 'owner') throw new Error('Only organization owners can manage billing.')
-  if (!context.subscription?.stripe_subscription_id) throw new Error('No active subscription found.')
+  const subscriptionId = context.subscription?.stripe_subscription_id
+  if (!subscriptionId) throw new Error('No active subscription found.')
+
+  if (subscriptionId.startsWith('razorpay:')) {
+    const { razorpay } = await import('@/lib/razorpay')
+    if (!razorpay) throw new Error('Razorpay is not configured.')
+    const id = subscriptionId.replace('razorpay:', '')
+    await razorpay.subscriptions.cancel(id, { cancel_at_cycle_end: 1 })
+    await context.supabase.from('subscriptions').update({ cancel_at_period_end: true }).eq('organization_id', context.organization.id)
+    return
+  }
+
   const stripe = getStripe()
-  await stripe.subscriptions.update(context.subscription.stripe_subscription_id, { cancel_at_period_end: true })
+  await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true })
 }
 
 export function planFromPriceId(priceId: string | null | undefined) {
