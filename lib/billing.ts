@@ -78,7 +78,7 @@ export async function cancelBillingSubscription() {
     const { razorpay } = await import('@/lib/razorpay')
     if (!razorpay) throw new Error('Razorpay is not configured.')
     const id = subscriptionId.replace('razorpay:', '')
-    await razorpay.subscriptions.cancel(id, { cancel_at_cycle_end: 1 })
+    await razorpay.subscriptions.cancel(id, 1)
     await context.supabase.from('subscriptions').update({ cancel_at_period_end: true }).eq('organization_id', context.organization.id)
     return
   }
