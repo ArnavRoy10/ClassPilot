@@ -1,9 +1,8 @@
-// app/admin/error.tsx
 'use client'
 
 import { useEffect } from 'react'
 
-export default function AdminError({
+export default function AppError({
   error,
   reset,
 }: {
@@ -11,12 +10,12 @@ export default function AdminError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error('[admin route error]', error)
+    console.error('[app route error]', error)
   }, [error])
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 py-16 text-center">
-      <h1 className="text-xl font-semibold">Admin page failed to load</h1>
+      <h1 className="text-xl font-semibold">This page failed to load</h1>
       <p className="text-sm text-muted-foreground">{error.message || 'Unknown server error.'}</p>
       {error.digest && (
         <p className="text-xs text-muted-foreground">Digest: {error.digest}</p>
