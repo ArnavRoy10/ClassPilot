@@ -48,7 +48,7 @@ export default function StudentsPage() {
     if (error) toast.error('Unable to load students')
     setStudents((data ?? []) as Student[])
     const { data: linked } = await supabase.from('profiles').select('student_id').not('student_id', 'is', null)
-    setLoginIds(new Set((linked ?? []).map((row) => row.student_id as string)))
+    setLoginIds(new Set((linked ?? []).map((row: { student_id: string | null }) => row.student_id as string)))
     setLoading(false)
   }
   useEffect(() => { void loadStudents() }, [])
