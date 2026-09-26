@@ -51,7 +51,7 @@ export default function TeachersPage() {
     if (error) toast.error('Unable to load teachers')
     setTeachers((data ?? []) as Teacher[])
     const { data: linked } = await supabase.from('profiles').select('teacher_id').not('teacher_id', 'is', null)
-    setLoginIds(new Set((linked ?? []).map((row) => row.teacher_id as string)))
+    setLoginIds(new Set((linked ?? []).map((row: { teacher_id: string | null }) => row.teacher_id as string)))
     setLoading(false)
   }
   useEffect(() => { void loadTeachers() }, [])
