@@ -37,26 +37,18 @@ export async function POST(request: Request) {
   const organizationId = callerProfile.organization_id
   const directoryTable = body.type === 'teacher' ? 'teachers' : 'students'
 
-  const directoryPayload =
-    body.type === 'teacher'
-      ? {
-          full_name: fullName,
-          email: email || null,
-          phone: body.phone ? String(body.phone).trim() : null,
-          subject: String(body.subject ?? '').trim(),
-          status: 'active',
-          organization_id: organizationId,
-          permissions,
-        }
-      : {
-          full_name: fullName,
-          student_code: String(body.student_code ?? '').trim().toUpperCase(),
-          batch: body.batch ? String(body.batch).trim() : null,
-          guardian_name: body.guardian_name ? String(body.guardian_name).trim() : null,
-          guardian_phone: body.guardian_phone ? String(body.guardian_phone).trim() : null,
-          organization_id: organizationId,
-          permissions,
-        }
+  const directoryPayload: Record<string, unknown> = { full_name: fullName, organization_id: organizationId, permissions }
+  if (body.type === 'teacher') {
+    directoryPayload.email = email || null
+    directoryPayload.phone = body.phone ? String(body.phone).trim() : null
+    directoryPayload.subject = String(body.subject ?? '').trim()
+    directoryPayload.status = 'active'
+  } else {
+    directoryPayload.student_code = String(body.student_code ?? '').trim().toUpperCase()
+    directoryPayload.batch = body.batch ? String(body.batch).trim() : null
+    directoryPayload.guardian_name = body.guardian_name ? String(body.guardian_name).trim() : null
+    directoryPayload.guardian_phone = body.guardian_phone ? String(body.guardian_phone).trim() : null
+  }
 
   const { data: directoryRow, error: directoryError } = await admin
     .from(directoryTable)
