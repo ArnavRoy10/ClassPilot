@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LogOut } from 'lucide-react'
@@ -12,6 +13,19 @@ import { Logo } from '@/components/brand/logo'
 export function AppSidebar() {
   const pathname = usePathname()
   const supabase = createClient()
+  const [isSoloTutor, setIsSoloTutor] = useState(false)
+
+  useEffect(() => {
+    async function loadOrgType() {
+      const orgId = await supabase.rpc('current_user_organization_id')
+      if (orgId.error || !orgId.data) return
+      const { data: org } = await supabase.from('organizations').select('type').eq('id', orgId.data).maybeSingle()
+      setIsSoloTutor(org?.type === 'solo_tutor')
+    }
+    void loadOrgType()
+  }, [])
+
+  const visibleNav = isSoloTutor ? flatNav.filter((item) => item.href !== '/teachers') : flatNav
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -28,7 +42,7 @@ export function AppSidebar() {
 
       <nav className="flex-1 overflow-auto py-4 px-3">
         <div className="space-y-1">
-          {flatNav.map((item) => {
+          {visibleNav.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
 
