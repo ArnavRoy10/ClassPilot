@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { flatNav } from '@/lib/nav'
+import { Logo } from '@/components/brand/logo'
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -20,11 +21,8 @@ export function AppSidebar() {
   return (
     <aside className="flex h-screen w-64 flex-col border-r bg-background">
       <div className="flex h-16 items-center border-b px-6">
-        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            CP
-          </div>
-          <span>ClassPilot</span>
+        <Link href="/dashboard" aria-label="ClassPilot home">
+          <Logo />
         </Link>
       </div>
 
